@@ -1,3 +1,6 @@
+在ArrayList的实现中，会经常运用到System.arraycopy和Arrays.copyOf，System.arraycopy主要是用于拷贝元素的，例如在某个索引位置处添加元素，和Arrays.copyOf会在里面新建一个数组，主要用于
+ArrayList的扩容使用
+
 add方法：
 
     public void add(int index, E element) {
