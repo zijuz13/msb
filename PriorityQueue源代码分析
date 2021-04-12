@@ -137,3 +137,91 @@ removeAt方法实现：
         }
         return null;
     }
+优先队列的itertor接口实现:
+    private final class Itr implements Iterator<E> {
+        /**
+         * Index (into queue array) of element to be returned by
+         * subsequent call to next.
+         */
+        private int cursor = 0;
+
+        /**
+         * Index of element returned by most recent call to next,
+         * unless that element came from the forgetMeNot list.
+         * Set to -1 if element is deleted by a call to remove.
+         */
+        private int lastRet = -1;
+
+        /**
+         * A queue of elements that were moved from the unvisited portion of
+         * the heap into the visited portion as a result of "unlucky" element
+         * removals during the iteration.  (Unlucky element removals are those
+         * that require a siftup instead of a siftdown.)  We must visit all of
+         * the elements in this list to complete the iteration.  We do this
+         * after we've completed the "normal" iteration.
+         *
+         * We expect that most iterations, even those involving removals,
+         * will not need to store elements in this field.
+         */
+        private ArrayDeque<E> forgetMeNot = null;
+
+        /**
+         * Element returned by the most recent call to next iff that
+         * element was drawn from the forgetMeNot list.
+         */
+        private E lastRetElt = null;
+
+        /**
+         * The modCount value that the iterator believes that the backing
+         * Queue should have.  If this expectation is violated, the iterator
+         * has detected concurrent modification.
+         */
+        private int expectedModCount = modCount;
+         //cursor<size说明还未被完全遍历完成，forgetMeNot不为空说明有元素跑到已经遍历过的位置去，需要再次遍历
+        public boolean hasNext() {
+            return cursor < size ||
+                (forgetMeNot != null && !forgetMeNot.isEmpty());
+        }
+
+        @SuppressWarnings("unchecked")
+        public E next() {
+            if (expectedModCount != modCount)
+                throw new ConcurrentModificationException();
+            if (cursor < size)
+                return (E) queue[lastRet = cursor++];
+            if (forgetMeNot != null) {
+                lastRet = -1;
+                lastRetElt = forgetMeNot.poll();
+                //这个不幸运的元素不为空，说明之前遍历的时候跑到i-1中去了
+                if (lastRetElt != null)
+                    return lastRetElt;
+            }
+            throw new NoSuchElementException();
+        }
+
+        public void remove() {
+            //说明多线程同时修改，那么抛出异常，此非线程安全类
+            if (expectedModCount != modCount)
+                throw new ConcurrentModificationException();
+            if (lastRet != -1) {
+               //删除上一个元素
+                E moved = PriorityQueue.this.removeAt(lastRet);
+                lastRet = -1;
+                //删除成功且没有改变i-1元素之前的元素，untouched
+                if (moved == null)
+                    cursor--;
+                else {
+                //有改变，初始化forgetMeNot，并且添加进入此元素
+                    if (forgetMeNot == null)
+                        forgetMeNot = new ArrayDeque<>();
+                    forgetMeNot.add(moved);
+                }
+            } else if (lastRetElt != null) {
+                PriorityQueue.this.removeEq(lastRetElt);
+                lastRetElt = null;
+            } else {
+                throw new IllegalStateException();
+            }
+            expectedModCount = modCount;
+        }
+    }
