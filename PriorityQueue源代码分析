@@ -3,3 +3,34 @@
 元素数量相等，随着元素不断添加进入优先队列，它的capacity将会自动进行增长
 需要注意的是，本优先队列实现的iterator方法不能保证按照特定的顺序遍历所有的优先队列元素，同时本优先队列方法都不是线程安全的，如果需要线程安全的优先队列，可以使用
 PriorityBlockingQueue来实现，下面是PriorityQueue源代码分析：
+public class PriorityQueue<E> extends AbstractQueue<E>中的重要成员变量有：
+    private static final int DEFAULT_INITIAL_CAPACITY = 11;
+    transient Object[] queue; // non-private to simplify nested class access 这里的queue使用的是非私有方法，为了让嵌套类可以更加方便的访问
+    private final Comparator<? super E> comparator; //如果为空那么将会使用类的自带comparable方法
+     transient int modCount = 0; 记录本对象结构被改变的次数，如扩容
+ 扩容代码：
+     一些jvm的实现会在数组对象头中保留几个字节，如果超过下面的数值分配数组内存，将会导致outofmemoryerror
+     private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
+     扩容源代码：
+     private void grow(int minCapacity) {
+        int oldCapacity = queue.length;
+        // Double size if small; else grow by 50%
+        int newCapacity = oldCapacity + ((oldCapacity < 64) ?
+                                         (oldCapacity + 2) :
+                                         (oldCapacity >> 1));
+        // overflow-conscious code
+        //如果增长后的容量大于最大数组容量，那么将会调用hugeCapacity方法，根据minCapacity来扩
+        if (newCapacity - MAX_ARRAY_SIZE > 0)
+            newCapacity = hugeCapacity(minCapacity);
+        queue = Arrays.copyOf(queue, newCapacity);
+    }
+      
+      private static int hugeCapacity(int minCapacity) {
+        //此时minCapacity的大小已为负数，说明已经溢出了
+        if (minCapacity < 0) // overflow
+            throw new OutOfMemoryError();
+            //如果原先需要保证的容量已经超过了最大数组容量，那么直接复制最大数值，否则赋值安全数组容量
+        return (minCapacity > MAX_ARRAY_SIZE) ?
+            Integer.MAX_VALUE :
+            MAX_ARRAY_SIZE;
+    }
