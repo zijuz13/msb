@@ -69,5 +69,73 @@ remove方法：
 
         return oldValue;
     }
+Iterator遍历器实现：
+    private class Itr implements Iterator<E> {
+        int cursor;       // index of next element to return
+        int lastRet = -1; // index of last element returned; -1 if no such
+        int expectedModCount = modCount;
 
+        Itr() {}
+
+        public boolean hasNext() {
+            return cursor != size;
+        }
+
+        @SuppressWarnings("unchecked")
+        public E next() {
+            checkForComodification();
+            int i = cursor;
+            if (i >= size)
+                throw new NoSuchElementException();
+             //有可能在执行这行代码的时候，另外一个线程执行了trimToSize的方法，导致i的值超过了size的值
+            Object[] elementData = ArrayList.this.elementData;
+             //此时再检查一次，防止越界，如果越界抛出多线程并发异常
+            if (i >= elementData.length)
+                throw new ConcurrentModificationException();
+            cursor = i + 1;
+            return (E) elementData[lastRet = i];
+        }
+
+        public void remove() {
+            if (lastRet < 0)
+                throw new IllegalStateException();
+            checkForComodification();
+
+            try {
+                ArrayList.this.remove(lastRet);
+                cursor = lastRet;
+                lastRet = -1;
+                expectedModCount = modCount;
+            } catch (IndexOutOfBoundsException ex) {
+                throw new ConcurrentModificationException();
+            }
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public void forEachRemaining(Consumer<? super E> consumer) {
+            Objects.requireNonNull(consumer);
+            final int size = ArrayList.this.size;
+            int i = cursor;
+            if (i >= size) {
+                return;
+            }
+            final Object[] elementData = ArrayList.this.elementData;
+            if (i >= elementData.length) {
+                throw new ConcurrentModificationException();
+            }
+            while (i != size && modCount == expectedModCount) {
+                consumer.accept((E) elementData[i++]);
+            }
+            // update once at end of iteration to reduce heap write traffic
+            cursor = i;
+            lastRet = i - 1;
+            checkForComodification();
+        }
+
+        final void checkForComodification() {
+            if (modCount != expectedModCount)
+                throw new ConcurrentModificationException();
+        }
+    }
 
