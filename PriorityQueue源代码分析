@@ -67,3 +67,35 @@ heapify方法：
         }
         queue[k] = key;
     }
+offer方法，加入队列：
+    public boolean offer(E e) {
+        if (e == null)
+            throw new NullPointerException();
+        modCount++;
+        int i = size;
+        //i的值已经达到了数组的容量了，此时数组需要进行扩容
+        if (i >= queue.length)
+            grow(i + 1);
+        size = i + 1;
+        if (i == 0)
+            queue[0] = e;
+        else
+            //新加入的元素向堆顶移动
+            siftUp(i, e);
+        return true;
+    }
+     
+    private void siftUpComparable(int k, E x) {
+        Comparable<? super E> key = (Comparable<? super E>) x;
+        while (k > 0) {
+            //获得父亲节点
+            int parent = (k - 1) >>> 1;
+            Object e = queue[parent];
+            //如果大于父亲节点，说明新加入的元素可以形成小顶堆，退出循环
+            if (key.compareTo((E) e) >= 0)
+                break;
+            queue[k] = e;
+            k = parent;
+        }
+        queue[k] = key;
+    }
