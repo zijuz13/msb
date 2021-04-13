@@ -1,0 +1,144 @@
+在ArrayList的实现中，会经常运用到System.arraycopy和Arrays.copyOf，System.arraycopy主要是用于拷贝元素的，例如在某个索引位置处添加元素，和Arrays.copyOf会在里面新建一个数组，主要用于
+ArrayList的扩容使用
+
+add方法：
+
+    public void add(int index, E element) {
+        rangeCheckForAdd(index);
+        //保证数组有size+1的大小
+        ensureCapacityInternal(size + 1);  // Increments modCount!!
+        //将数组从index到最后的元素移动到index+1开始以后
+        System.arraycopy(elementData, index, elementData, index + 1,
+                         size - index);
+        elementData[index] = element;
+        //增加size大小
+        size++;
+    }
+    
+    private void ensureCapacityInternal(int minCapacity) {
+        ensureExplicitCapacity(calculateCapacity(elementData, minCapacity));
+    }
+
+
+    private static int calculateCapacity(Object[] elementData, int minCapacity) {
+        if (elementData == DEFAULTCAPACITY_EMPTY_ELEMENTDATA) {
+            return Math.max(DEFAULT_CAPACITY, minCapacity);
+        }
+        return minCapacity;
+    }
+       
+        private void ensureExplicitCapacity(int minCapacity) {
+        modCount++;
+
+        // overflow-conscious code
+        //大小不够扩容
+        if (minCapacity - elementData.length > 0)
+            grow(minCapacity);
+    }
+    
+        private void grow(int minCapacity) {
+        // overflow-conscious code
+        int oldCapacity = elementData.length;
+        int newCapacity = oldCapacity + (oldCapacity >> 1);
+        if (newCapacity - minCapacity < 0)
+            newCapacity = minCapacity;
+        if (newCapacity - MAX_ARRAY_SIZE > 0)
+            newCapacity = hugeCapacity(minCapacity);
+        // minCapacity is usually close to size, so this is a win:
+        elementData = Arrays.copyOf(elementData, newCapacity);
+    }
+    
+        private static int hugeCapacity(int minCapacity) {
+        if (minCapacity < 0) // overflow
+            throw new OutOfMemoryError();
+        return (minCapacity > MAX_ARRAY_SIZE) ?
+            Integer.MAX_VALUE :
+            MAX_ARRAY_SIZE;
+    }
+remove方法：
+    public E remove(int index) {
+        rangeCheck(index);
+
+        modCount++;
+        E oldValue = elementData(index);
+        //计算需要移动的元素
+        int numMoved = size - index - 1;
+        if (numMoved > 0)
+            //移动到前面去
+            System.arraycopy(elementData, index+1, elementData, index,
+                             numMoved);
+        //最后一个元素赋值为null，让gc去回收
+        elementData[--size] = null; // clear to let GC do its work
+
+        return oldValue;
+    }
+Iterator遍历器实现：
+    private class Itr implements Iterator<E> {
+        int cursor;       // index of next element to return
+        int lastRet = -1; // index of last element returned; -1 if no such
+        int expectedModCount = modCount;
+
+        Itr() {}
+
+        public boolean hasNext() {
+            return cursor != size;
+        }
+
+        @SuppressWarnings("unchecked")
+        public E next() {
+            checkForComodification();
+            int i = cursor;
+            if (i >= size)
+                throw new NoSuchElementException();
+             //有可能在执行这行代码的时候，另外一个线程执行了trimToSize的方法，导致i的值超过了size的值
+            Object[] elementData = ArrayList.this.elementData;
+             //此时再检查一次，防止越界，如果越界抛出多线程并发异常
+            if (i >= elementData.length)
+                throw new ConcurrentModificationException();
+            cursor = i + 1;
+            return (E) elementData[lastRet = i];
+        }
+
+        public void remove() {
+            if (lastRet < 0)
+                throw new IllegalStateException();
+            checkForComodification();
+
+            try {
+                ArrayList.this.remove(lastRet);
+                cursor = lastRet;
+                lastRet = -1;
+                expectedModCount = modCount;
+            } catch (IndexOutOfBoundsException ex) {
+                throw new ConcurrentModificationException();
+            }
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public void forEachRemaining(Consumer<? super E> consumer) {
+            Objects.requireNonNull(consumer);
+            final int size = ArrayList.this.size;
+            int i = cursor;
+            if (i >= size) {
+                return;
+            }
+            final Object[] elementData = ArrayList.this.elementData;
+            if (i >= elementData.length) {
+                throw new ConcurrentModificationException();
+            }
+            while (i != size && modCount == expectedModCount) {
+                consumer.accept((E) elementData[i++]);
+            }
+            // update once at end of iteration to reduce heap write traffic
+            cursor = i;
+            lastRet = i - 1;
+            checkForComodification();
+        }
+
+        final void checkForComodification() {
+            if (modCount != expectedModCount)
+                throw new ConcurrentModificationException();
+        }
+    }
+

@@ -1,0 +1,227 @@
+这是一个基于优先堆的优先队列，里面的元素都是按照每个对象实现的comparable接口来排列，或者按照在构造优先队列时的提供的Comparator实例来排序，
+队列的第一个元素是排序中的最小元素，优先队列的大小没有进行限制，但是它有一个容量capacity用于限制在队列中存储的元素数量，capacity的大小总是和队列中存储的
+元素数量相等，随着元素不断添加进入优先队列，它的capacity将会自动进行增长
+需要注意的是，本优先队列实现的iterator方法不能保证按照特定的顺序遍历所有的优先队列元素，同时本优先队列方法都不是线程安全的，如果需要线程安全的优先队列，可以使用
+PriorityBlockingQueue来实现，下面是PriorityQueue源代码分析：
+public class PriorityQueue<E> extends AbstractQueue<E>中的重要成员变量有：
+    private static final int DEFAULT_INITIAL_CAPACITY = 11;
+    transient Object[] queue; // non-private to simplify nested class access 这里的queue使用的是非私有方法，为了让嵌套类可以更加方便的访问
+    private final Comparator<? super E> comparator; //如果为空那么将会使用类的自带comparable方法
+     transient int modCount = 0; 记录本对象结构被改变的次数，如扩容
+ 扩容代码：
+     一些jvm的实现会在数组对象头中保留几个字节，如果超过下面的数值分配数组内存，将会导致outofmemoryerror
+     private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
+     扩容源代码：
+     private void grow(int minCapacity) {
+        int oldCapacity = queue.length;
+        // Double size if small; else grow by 50%
+        int newCapacity = oldCapacity + ((oldCapacity < 64) ?
+                                         (oldCapacity + 2) :
+                                         (oldCapacity >> 1));
+        // overflow-conscious code
+        //如果增长后的容量大于最大数组容量，那么将会调用hugeCapacity方法，根据minCapacity来扩
+        if (newCapacity - MAX_ARRAY_SIZE > 0)
+            newCapacity = hugeCapacity(minCapacity);
+        queue = Arrays.copyOf(queue, newCapacity);
+    }
+      
+      private static int hugeCapacity(int minCapacity) {
+        //此时minCapacity的大小已为负数，说明已经溢出了
+        if (minCapacity < 0) // overflow
+            throw new OutOfMemoryError();
+            //如果原先需要保证的容量已经超过了最大数组容量，那么直接复制最大数值，否则赋值安全数组容量
+        return (minCapacity > MAX_ARRAY_SIZE) ?
+            Integer.MAX_VALUE :
+            MAX_ARRAY_SIZE;
+    }
+heapify方法：
+    private void heapify() {
+       //从最后一个非叶子节点开始形成最小堆
+        for (int i = (size >>> 1) - 1; i >= 0; i--)
+            siftDown(i, (E) queue[i]);
+    }
+        private void siftDown(int k, E x) {
+        //如果comparator对象不为空
+        if (comparator != null)
+            siftDownUsingComparator(k, x);
+        else
+            siftDownComparable(k, x);
+    }
+      private void siftDownComparable(int k, E x) {
+        Comparable<? super E> key = (Comparable<? super E>)x;
+        int half = size >>> 1;        // loop while a non-leaf
+        while (k < half) {
+             //先假设左节点为最小的
+            int child = (k << 1) + 1; // assume left child is least
+            Object c = queue[child];
+            int right = child + 1;
+            //判断右节点的大小
+            if (right < size &&
+                ((Comparable<? super E>) c).compareTo((E) queue[right]) > 0)
+                c = queue[child = right];
+             //说明已经形成了最小堆
+            if (key.compareTo((E) c) <= 0)
+                break;
+            queue[k] = c;
+            k = child;
+        }
+        queue[k] = key;
+    }
+offer方法，加入队列：
+    public boolean offer(E e) {
+        if (e == null)
+            throw new NullPointerException();
+        modCount++;
+        int i = size;
+        //i的值已经达到了数组的容量了，此时数组需要进行扩容
+        if (i >= queue.length)
+            grow(i + 1);
+        size = i + 1;
+        if (i == 0)
+            queue[0] = e;
+        else
+            //新加入的元素向堆顶移动
+            siftUp(i, e);
+        return true;
+    }
+     
+    private void siftUpComparable(int k, E x) {
+        Comparable<? super E> key = (Comparable<? super E>) x;
+        while (k > 0) {
+            //获得父亲节点
+            int parent = (k - 1) >>> 1;
+            Object e = queue[parent];
+            //如果大于父亲节点，说明新加入的元素可以形成小顶堆，退出循环
+            if (key.compareTo((E) e) >= 0)
+                break;
+            queue[k] = e;
+            k = parent;
+        }
+        queue[k] = key;
+    }
+peek方法返回堆顶元素最小值:
+    public E peek() {
+        return (size == 0) ? null : (E) queue[0];
+    }
+indexOf返回相应对象的索引，在O(n)的时间复杂度内
+    private int indexOf(Object o) {
+        if (o != null) {
+            for (int i = 0; i < size; i++)
+                if (o.equals(queue[i]))
+                    return i;
+        }
+        return -1;
+    }
+removeAt方法实现：
+   //正常情况下，这个方法不会动包括i-1索引以前的元素，如果是这种正常情况，将会返回null，有时，为了保证最小根堆，最后一个元素可能需要和
+   //前面的i-1元素之前的元素进行交换，此时这种情况，这个方法就会返回最后一个元素，这是为了iterator remove方法中防止遍历漏过了的最后一个元素
+    private E removeAt(int i) {
+        // assert i >= 0 && i < size;
+        modCount++;
+        int s = --size;
+        //如果要删除的元素在最后，直接设置为null即可
+        if (s == i) // removed last element
+            queue[i] = null;
+        else {
+            //拿到最后一个元素
+            E moved = (E) queue[s];
+            queue[s] = null;
+            //把最后一个元素从i的位置进行siftDown插入
+            siftDown(i, moved);
+            if (queue[i] == moved) {
+                siftUp(i, moved);
+            
+                if (queue[i] != moved)
+                    return moved;
+            }
+        }
+        return null;
+    }
+优先队列的itertor接口实现:
+    private final class Itr implements Iterator<E> {
+        /**
+         * Index (into queue array) of element to be returned by
+         * subsequent call to next.
+         */
+        private int cursor = 0;
+
+        /**
+         * Index of element returned by most recent call to next,
+         * unless that element came from the forgetMeNot list.
+         * Set to -1 if element is deleted by a call to remove.
+         */
+        private int lastRet = -1;
+
+        /**
+         * A queue of elements that were moved from the unvisited portion of
+         * the heap into the visited portion as a result of "unlucky" element
+         * removals during the iteration.  (Unlucky element removals are those
+         * that require a siftup instead of a siftdown.)  We must visit all of
+         * the elements in this list to complete the iteration.  We do this
+         * after we've completed the "normal" iteration.
+         *
+         * We expect that most iterations, even those involving removals,
+         * will not need to store elements in this field.
+         */
+        private ArrayDeque<E> forgetMeNot = null;
+
+        /**
+         * Element returned by the most recent call to next iff that
+         * element was drawn from the forgetMeNot list.
+         */
+        private E lastRetElt = null;
+
+        /**
+         * The modCount value that the iterator believes that the backing
+         * Queue should have.  If this expectation is violated, the iterator
+         * has detected concurrent modification.
+         */
+        private int expectedModCount = modCount;
+         //cursor<size说明还未被完全遍历完成，forgetMeNot不为空说明有元素跑到已经遍历过的位置去，需要再次遍历
+        public boolean hasNext() {
+            return cursor < size ||
+                (forgetMeNot != null && !forgetMeNot.isEmpty());
+        }
+
+        @SuppressWarnings("unchecked")
+        public E next() {
+            if (expectedModCount != modCount)
+                throw new ConcurrentModificationException();
+            if (cursor < size)
+                return (E) queue[lastRet = cursor++];
+            if (forgetMeNot != null) {
+                lastRet = -1;
+                lastRetElt = forgetMeNot.poll();
+                //这个不幸运的元素不为空，说明之前遍历的时候跑到i-1中去了
+                if (lastRetElt != null)
+                    return lastRetElt;
+            }
+            throw new NoSuchElementException();
+        }
+
+        public void remove() {
+            //说明多线程同时修改，那么抛出异常，此非线程安全类
+            if (expectedModCount != modCount)
+                throw new ConcurrentModificationException();
+            if (lastRet != -1) {
+               //删除上一个元素
+                E moved = PriorityQueue.this.removeAt(lastRet);
+                lastRet = -1;
+                //删除成功且没有改变i-1元素之前的元素，untouched
+                if (moved == null)
+                    cursor--;
+                else {
+                //有改变，初始化forgetMeNot，并且添加进入此元素
+                    if (forgetMeNot == null)
+                        forgetMeNot = new ArrayDeque<>();
+                    forgetMeNot.add(moved);
+                }
+            } else if (lastRetElt != null) {
+                PriorityQueue.this.removeEq(lastRetElt);
+                lastRetElt = null;
+            } else {
+                throw new IllegalStateException();
+            }
+            expectedModCount = modCount;
+        }
+    }
