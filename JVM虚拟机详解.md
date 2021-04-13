@@ -64,4 +64,27 @@ Stinrg c=ClassLayout.parseInstance(o).toPrintable();
 普通对象中markword占8字节，class pointer指向这个类的字节码对象的地址，实例数据指向相应的数据，对齐是为了让所有的字节数可以被8整除
 下面是Object对象的内存：
 ![](./assets/17.png)
+markword包括
+1.锁信息
+2.gc信息
+3.hashcode信息
+### 6.对象的定位：
+![](./assets/20.png)
+句柄方式优点：方便进行gc，gc时不用改变t的值，而直接指针需要改变t的值
 
+### 7.对象的分配：
+能够在栈上分配的对象很高效，因为当方法调用完毕，栈弹出，就会自动对象没了,在栈上进行分配的时候要先进行逃逸分析
+如果对象比较大需要分配到老年代中去
+小对象直接分配在线程本地在eden区
+![](./assets/22.png)
+![](./assets/23.png)
+
+Object obj=new Object();
+占用16个字节，markword 8个字节
+classpointer 4个字节 padding 4个字节
+一共16个
+### 8.Java的方法区
+java的方法区可以看作是接口，而1.8以前的实现是permanent generation永久代以及1.8之后的meta space元空间
+而class字节码对象是位于堆中的，并不是对象的class指针直接指向，虽然也可以这样说，很多教材都这样说，也可以当作是,在堆里的原因是，方便我们拿出来作java的反射使用
+直接指向class对象位于堆的地址，但实际如下:
+![](./assets/134.png)
