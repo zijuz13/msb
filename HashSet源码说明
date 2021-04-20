@@ -1,0 +1,10 @@
+1.HashSet中使用了一个PRESENT静态常量来代替hashmap中节点的value值
+// Dummy value to associate with an Object in the backing Map
+private static final Object PRESENT = new Object();
+2.内部存储一个hashmap对象，基本上所有的功能都是通过这个hashmap实现的
+private transient HashMap<E,Object> map;
+3.HashSet的添加操作:
+public boolean add(E e) {
+  return map.put(e, PRESENT)==null;
+ }
+因为hashmap的put方法如果发现key存在会返回旧的value值，这样如果E e存在，将又会返回present常量对象，这样可以达到去重的目的
