@@ -1,5 +1,9 @@
 在ArrayList的实现中，会经常运用到System.arraycopy和Arrays.copyOf，System.arraycopy主要是用于拷贝元素的，例如在某个索引位置处添加元素，和Arrays.copyOf会在里面新建一个数组，主要用于
 ArrayList的扩容使用
+面试时，扩容机制可以这样描述：
+ArrayList先对原来的数组长度/2+原来的数组长度得到一个newCapacity的变量，如果这个newcapacity比arr_max_size还大的话，它会调用hugecapacity方法，传入需要保证的capacity，
+如果这个capacity小于0那么就说明溢出，抛出oom异常，否则判断这个capacity大小，如果为大于arr_max_size则将数组大小扩容成Integer.MAX_VALUE,否则就设置为arr_max_size
+
 
 add方法：
 
