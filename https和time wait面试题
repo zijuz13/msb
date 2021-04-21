@@ -1,0 +1,6 @@
+Time Wait
+time wait是tcp连接发起方在发送最后一个ack后所要进入的状态，它需要再等待2msl时间 maximum segment lifetime，因为
+因为确认ack有可能会丢失，而接受方会重传fin的消息，如果发送一个确认ack就关闭，将会导致接受方不能够正常关闭连接
+
+Https:
+http就是一个纯文本，任何人都可以看，而https基于公钥和私钥进行加密
