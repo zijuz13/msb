@@ -16,3 +16,16 @@ LongAdder分段锁：
 3.juc包下的常见锁：
 1.CountDownLatch:
 有点像门栓，设定一个初始值，每个线程都会对这个值进行countdown，直到0为止，才会执行主线程await后面的代码，使用代码实例：
+    public void testCountDownLatch() throws InterruptedException {
+        CountDownLatch latch=new CountDownLatch(100);
+        Thread[] threads=new Thread[100];
+        for(int i=0;i<threads.length;++i){
+            threads[i]=new Thread(()->{
+                System.out.println("I am invoked thread"+latch.getCount());
+               latch.countDown();
+            });
+            threads[i].start();
+        }
+        //主线程进入等待状态，知道countdown到0会被唤醒
+        latch.await();
+    }
