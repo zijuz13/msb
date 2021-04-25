@@ -1,0 +1,7 @@
+1.CAS的传入参数为三个时，第一个为要改的对象
+cas(Object obj,expected期望值,updated新值) 自旋
+for(;;)
+如果当前m值==0 M=1
+cpu添加屏障 原语cas
+2.synchronized和AtomicLong以及LongAdder分别对count进行自增操作的效率对比:
+在一万次并发的情况下LongAdder的时间少于AtomicLong少于LongAdder
