@@ -1,0 +1,77 @@
+ThreadPoolExecutor中有这几个状态:
+
+RUNNING：接受新的任务并且处理阻塞队列中的任务
+SHUTDOWN：不接受新的任务但是处理阻塞队列中的任务
+STOP：不接受新的任务，不处理阻塞队列中的任务，对正在运行的任务中断
+TIDYING：所有任务被中止，workercount为0，最后调用terminated钩子函数
+TERMINATED：已经调用完terminated钩子函数之后
+
+常见成员变量解释:
+//ctl用来标识线程池的状态（最高三位）以及工作线程的数量(低29位)
+  private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
+      // 29-bit 的偏移量
+    private static final int COUNT_BITS = Integer.SIZE - 3;
+   // Maximum capacity (2 ^ 29 - 1)由于高三位被线程状态所占用，所以最大数量设置为如此
+    private static final int CAPACITY   = (1 << COUNT_BITS) - 1;
+    //使用高三位保存线程池的状态
+        private static final int RUNNING    = -1 << COUNT_BITS;
+    private static final int SHUTDOWN   =  0 << COUNT_BITS;
+    private static final int STOP       =  1 << COUNT_BITS;
+    private static final int TIDYING    =  2 << COUNT_BITS;
+    private static final int TERMINATED =  3 << COUNT_BITS;
+    其他的一些成员变量，一看就懂了
+        // Blocking queue 阻塞队列
+    private final BlockingQueue<Runnable> workQueue;
+    // Reentrant lock 自旋可重入锁
+    private final ReentrantLock mainLock = new ReentrantLock();
+    // Store worker thread collections 工作线程的集合
+    private final HashSet<Worker> workers = new HashSet<Worker>();
+    // Termination condition   结束条件注册线程
+    private final Condition termination = mainLock.newCondition();
+    // Maximum Thread Pool Capacity  最大线程数量
+    private int largestPoolSize;
+    // Number of completed tasks 已经完成的任务数量
+    private long completedTaskCount;
+    // Thread factory  线程工厂
+    private volatile ThreadFactory threadFactory;
+    // Refuse to execute processor 拒绝策略
+    private volatile RejectedExecutionHandler handler;
+    // Thread Waiting Runtime   线程存活时间
+    private volatile long keepAliveTime; 
+    // Whether to run core thread timeout 
+    private volatile boolean allowCoreThreadTimeOut;
+    // Core pool size          
+    private volatile int corePoolSize;
+    // Maximum thread pool size
+    private volatile int maximumPoolSize;
+    // Default Denial of Execution Processor
+    private static final RejectedExecutionHandler defaultHandler =
+        new AbortPolicy();
+        
+        
+     构造方法:
+     public ThreadPoolExecutor(int corePoolSize,
+                              int maximumPoolSize,
+                              long keepAliveTime,
+                              TimeUnit unit,
+                              BlockingQueue<Runnable> workQueue,
+                              ThreadFactory threadFactory,
+                              RejectedExecutionHandler handler) {
+        if (corePoolSize < 0 ||                                                // Core size should not be less than 0
+            maximumPoolSize <= 0 ||                                            // The initial maximum capacity of the thread pool should not be less than 0
+            maximumPoolSize < corePoolSize ||                                // Initial maximum capacity should not be less than core size
+            keepAliveTime < 0)                                                // Keep AliveTime No less than 0
+            throw new IllegalArgumentException();                                
+        if (workQueue == null || threadFactory == null || handler == null)
+            throw new NullPointerException();
+        // Initialize the corresponding domain
+        //核心线程数量
+        this.corePoolSize = corePoolSize;
+        //最大允许线程数量
+        this.maximumPoolSize = maximumPoolSize;
+        //工作队列
+        this.workQueue = workQueue;
+        this.keepAliveTime = unit.toNanos(keepAliveTime);
+        this.threadFactory = threadFactory;
+        this.handler = handler;
+    }
